@@ -96,8 +96,6 @@ async function getLastBlock(){
 
                     }); 
 
-
-
               })
               .catch(function (error) {
                 // Without handling
@@ -105,7 +103,6 @@ async function getLastBlock(){
               })
  
         }, 100);   // without Interval - out of memory
-
 
     });
 
