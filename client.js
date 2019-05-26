@@ -14,14 +14,12 @@ const config = {
 
 const pool = new pg.Pool(config);
 
-pool.connect(function (err, client, done) {
+pool.connect(function (err, client, release) {
 
     if (err) {
         console.log("Can not connect to the DB" + err);
     } else {
-
-        run();
-
+        run(err, client, release).then( () => {console.log('there999'); pool.end().then(() => console.log('pool has ended')) } );
     }
 
 })
@@ -78,15 +76,7 @@ async function getLastBlock(){
   function getBlockbyNum(num){
 
     return axios.post(`${APIprefix}getblockbynum`, {"num" : num})
-    .then(function (response) {
-      // handle success
-        console.log( response.data.block_header.raw_data.number )       
-      
-    })
-    .catch(function (error) {
-      // Without handling
-      console.log(error);
-    })
+
   }
 
   //
@@ -124,7 +114,7 @@ async function getLastBlock(){
 
   //getCurNumBlockFromDB();
 
-  let run = async () => {
+  let run = async (err, client, release) => {
    
     let lastBlock = await getLastBlock();
 
@@ -134,13 +124,60 @@ async function getLastBlock(){
         let num = lastBlock.number;
         //for ( let num = lastBlock.number; num >= 0 ; num-- ) {
         //for ( let num = 100; num >= 0 ; num-- ) {
-        //num = 5;
+        num = 350;
 
         let timer = setInterval(function() {
-            getBlockbyNum(num);
-            num--;
-            if ( num === 0 ) { clearInterval(timer); }
-        }, 1000);   // without Interval - out of memory
+            getBlockbyNum(num)
+            .then(function (response) {
+                // handle success
+
+                  let data = response.data.block_header; 
+
+                  //console.log( response.data.block_header.raw_data.number )       
+                  console.log( response.data.block_header )   
+                  
+                  console.log('there1')
+                  
+                  client.query(
+                    `INSERT 
+                     INTO blocks 
+                        (block_number, tx_trie_root, witness_address, parent_hash, timestamp, witness_signature, transactions) 
+                    VALUES($1, $2, $3, $4, $5, $6, $7) RETURNING id`, 
+                    [ data.raw_data.number                // block_number
+                     //,response.data.block_header          // block_id
+                     ,data.raw_data.txTrieRoot            // tx_trie_root
+                     ,data.raw_data.witness_address       // witness_address
+                     ,data.raw_data.parent_hash           // parent_hash
+                     ,data.raw_data.timestamp             // timestamp
+                     ,data.witness_signature              // witness_signature
+                     ,JSON.stringify(data.transactions)   // transactions
+                    ], 
+                    
+                    function(err, result) {
+                        release()
+                        if (err) {
+                            console.error('Error executing query', err.stack)
+                        } else {                         
+                            
+                            if ( num === 0 ) { clearInterval(timer); resolve('Ok'); }
+                            num--;
+                            //console.log('row inserted with id: ' + result.rows[0].id);
+                        }
+                        //pool.end();
+                        //pool.done();
+                    }); 
+
+
+
+              })
+              .catch(function (error) {
+                // Without handling
+                console.log(error);
+              })
+
+
+ 
+        }, 100);   // without Interval - out of memory
 
 
     });
@@ -149,4 +186,24 @@ async function getLastBlock(){
 
 
 
-  //getBlockbyNum(1);
+/*   getBlockbyNum(1)
+  .then(function (response) {
+    // handle success
+      //console.log( response.data.block_header.raw_data.number )       
+      console.log( response.data )       
+  })
+  .catch(function (error) {
+    // Without handling
+    console.log(error);
+  })
+
+  getBlockbyNum(342)
+  .then(function (response) {
+    // handle success
+      //console.log( response.data.block_header.raw_data.number )       
+      console.log( response.data )       
+  })
+  .catch(function (error) {
+    // Without handling
+    console.log(error);
+  }) */
