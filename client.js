@@ -67,8 +67,6 @@ async function getLastBlock(){
 
                   let data = response.data.block_header; 
 
-                  console.log(response.data.transactions);
-
                   client.query(
                     `INSERT 
                      INTO blocks 
@@ -87,11 +85,9 @@ async function getLastBlock(){
                         release()
                         if (err) {
                             console.error('Error executing query', err.stack)
-                        } else {                       
-                            
+                        } else {      
                             if ( num === 0 ) { clearInterval(timer); resolve('Ok'); }
                             num--;
-
                         }
 
                     }); 
